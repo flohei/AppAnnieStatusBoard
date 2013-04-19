@@ -1,3 +1,4 @@
+require 'rubygems'
 require 'httparty'
 require 'json'
 require 'date'
@@ -7,19 +8,19 @@ require 'date'
 #####################################################################
 
 # For more information about the parameters, see https://appannie.zendesk.com/entries/23215097-2-App-Sales
-username = "" # App Annie username
-password = "" # App Annie password
-account_id = "" # App Annie account connection id. You can get all account connection info by calling /v1/accounts
-graph_title = ""
+username = "foo@bar.com" # App Annie username
+password = "abc123def" # App Annie password
+account_id = "12345" # App Annie account connection id. You can get all account connection info by calling /v1/accounts
+graph_title = "App Store Downloads"
 graph_type = "line"
 hide_totals = false
 days_to_show = 30
 products = [
-    { :title => "Product 1", :app_id => 000000000, :color => "green" },
-    { :title => "Product 2", :app_id => 000000000, :color => "blue" }
+    { :title => "App 1", :app_id => 123456789, :color => "red" },
+    { :title => "App 2", :app_id => 987654321, :color => "blue" }
 ]
 
-outputFile = "/Users/tim/Dropbox/Status\ Board/salesboard.json"
+outputFile = "/Users/foo/Dropbox/yourpath/downloadssboard.json"
 
 #####################################################################
 # Configuration End
@@ -49,39 +50,41 @@ min_total = 0
 max_total = 0
 
 products.each do |p|
-  sales_data = []
+  downloads_data = []
   response = HTTParty.get("https://api.appannie.com/v1/accounts/#{account_id}/apps/#{p[:app_id]}/sales?break_down=date&start_date=#{start_date.to_s}&end_date=#{end_date.to_s}", options)
 
-  sales = response.parsed_response["sales_list"]
-  sales.reverse!
+  downloads = response.parsed_response["sales_list"]
+  downloads.reverse!
 
-  sales.each do |datapoint|
+  downloads.each do |datapoint|
     date = Date.parse(datapoint["date"])
     date_string = "#{months["#{date.month}"]} #{date.day}"
 
-    value = datapoint["revenue"]["app"]["downloads"]
+    value_downloads = datapoint["units"]["app"]["downloads"]
+    value_sales = datapoint["revenue"]["app"]["downloads"]
+    value = value_downloads.to_i + value_sales.to_i
 
     min_total = value.to_i if value.to_i < min_total || min_total == 0
     max_total = value.to_i if value.to_i > max_total
 
-    sales_data << {
+    downloads_data << {
       :title => date_string,
       :value => value
     }
   end
 
   # Add the product to the data sequences.
-  data_sequences << { :title => p[:title], :color => p[:color], :datapoints => sales_data }
+  data_sequences << { :title => p[:title], :color => p[:color], :datapoints => downloads_data }
 end
 
-sales_graph = {
+downloads_graph = {
   :graph => {
     :title => graph_title,
     :type => graph_type,
     :yAxis => {
       :hide => hide_totals,
       :units => {
-        :prefix => "$",
+          #:prefix => "$",
         :min_total => min_total,
         :max_total => max_total
       }
@@ -91,5 +94,5 @@ sales_graph = {
 }
 
 File.open(outputFile, "w") do |f|
-  f.write(sales_graph.to_json)
+  f.write(downloads_graph.to_json)
 end
